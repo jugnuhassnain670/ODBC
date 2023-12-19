@@ -1,0 +1,42 @@
+---
+- name: Update ODBC Connection
+  hosts: windows_servers
+  gather_facts: no
+  vars_prompt:
+    - name: new_username
+      prompt: "Enter the new username for the ODBC connection"
+      private: no  # Setting to 'yes' hides the entered value
+    - name: new_password
+      prompt: "Enter the new password for the ODBC connection"
+      private: yes  # Setting to 'yes' hides the entered value
+  tasks:
+    - name: Update ODBC Username and Password
+      win_shell: |
+        $dsnName = "YourDataSource"
+
+        # Prompted variables
+        $newUsername = "{{ new_username }}"
+        $newPassword = "{{ new_password }}"
+
+        # Use PowerShell commands to update the ODBC connection
+        $odbcConnection = Get-OdbcDsn -Name $dsnName
+        $odbcConnection.SetAttribute("Uid", $newUsername)
+        $odbcConnection.SetAttribute("Pwd", $newPassword)
+        $odbcConnection | Set-OdbcDsn
+
+        # Test the ODBC connection
+        try {
+            $testConnection = Test-OdbcDsn -Name $dsnName
+            if ($testConnection -eq $null) {
+                Write-Host "Connection test successful."
+            } else {
+                Write-Host "Connection test failed."
+                exit 1
+            }
+        } catch {
+            Write-Host "Connection test failed. $_"
+            exit 1
+        }
+
+      become: yes
+      become_user: Administrator  # Specify the user with sufficient privileges
